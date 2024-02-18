@@ -1,5 +1,5 @@
 import { AuthBindings } from "@refinedev/core";
-import { API_BASE_URL, API_URL, dataProvider } from "./data";
+import { API_URL, dataProvider } from "./data";
 
 export const authCredentials = {
   email: "micheal.scott@dundermifflin.com",
@@ -8,14 +8,13 @@ export const authCredentials = {
 
 export const authProvider: AuthBindings = {
   login: async ({ email }) => {
-    console.log('trying to login')
     try {
       const { data } = await dataProvider.custom({
         url: API_URL,
         method: "post",
         headers: {},
         meta: {
-          variables: { email }, 
+          variables: { email },
           rawQuery: `mutation Login( $email: String! ){
                     login(loginInput: {email: $email}){
                         accessToken
@@ -23,14 +22,14 @@ export const authProvider: AuthBindings = {
                 }`,
         },
       });
-      console.log(data)
-      localStorage.setItem("access_token", data.login.accessToken);
+      localStorage.setItem("access_token", data?.login.accessToken);
 
       return {
         success: true,
         redirectTo: `/`,
       };
     } catch (e) {
+      console.error("Login error:", e);
       const error = e as Error;
 
       return {
@@ -61,11 +60,13 @@ export const authProvider: AuthBindings = {
   },
 
   check: async () => {
+    const accessToken = localStorage.getItem("access_token");
+
     try {
       await dataProvider.custom({
-        url: API_BASE_URL,
+        url: API_URL,
         method: "post",
-        headers: {},
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         meta: {
           rawQuery: `   query Me {
                     me {
@@ -87,15 +88,15 @@ export const authProvider: AuthBindings = {
     }
   },
 
-  register: async ({email, password}) => {
-    try{
-        await dataProvider.custom({
-            url: API_URL,
-            method: 'post',
-            headers: {},
-            meta: {
-                variables: {email, password},
-                rawQuery: `mutation register($email: String!, $password: String!) {
+  register: async ({ email, password }) => {
+    try {
+      await dataProvider.custom({
+        url: API_URL,
+        method: "post",
+        headers: {},
+        meta: {
+          variables: { email, password },
+          rawQuery: `mutation register($email: String!, $password: String!) {
                     register(registerInput: {
                       email: $email
                         password: $password
@@ -104,38 +105,34 @@ export const authProvider: AuthBindings = {
                         email
                     }
                   }`,
-            }
-        });
+        },
+      });
 
-        return {
-            success: true,
-            redirectTo: `/login?email=${email}`,
-        };
-    }catch(error: any){
-        return {
-            success: false,
-            error: {
-                message:
-                    "message" in error ? error.message : "Register failed",
-                name:
-                    "name" in error
-                        ? error.name
-                        : "Invalid email or password",
-            },
-        };
+      return {
+        success: true,
+        redirectTo: `/login?email=${email}`,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: {
+          message: "message" in error ? error.message : "Register failed",
+          name: "name" in error ? error.name : "Invalid email or password",
+        },
+      };
     }
-  },    
+  },
 
   getIdentity: async () => {
-    const accessToken = localStorage.getItem('access_token');
-
-    try{
-        const {data} = await dataProvider.custom({
-            url: API_BASE_URL,
-            method: 'post',
-            headers: accessToken ? {Authorization: `Bearer ${accessToken}`} : {},
-            meta: {
-                rawQuery: ` query Me {
+    const accessToken = localStorage.getItem("access_token");
+    
+    try {
+      const { data } = await dataProvider.custom({
+        url: API_URL,
+        method: "post",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        meta: {
+          rawQuery: ` query Me {
                     me {
                         id,
                         name,
@@ -145,13 +142,15 @@ export const authProvider: AuthBindings = {
                         timezone
                         avatarUrl
                     }
-                  }`
-            }
-        });
+                  }`,
+        },
+      });
 
-        return data.me;
-    }catch(error){
-        return undefined;
+      return data.me;
+    } catch (error) {
+      return {
+        message: error,
+      };
     }
-  }
+  },
 };
